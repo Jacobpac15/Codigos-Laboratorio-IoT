@@ -1,0 +1,678 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{float}
+
+\title{Laboratorio 1: ADC, DAC y Periféricos Básicos en ESP32}
+
+\author{
+\IEEEauthorblockN{Jacobo Andres Pacheco, Yuly Dayana Rodriguez, David Andres Casas}
+\IEEEauthorblockA{
+Universidad de La Sabana\\
+Curso de IoT\\
+Febrero 2026}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+En este laboratorio se diseñó e implementó un sistema básico de osciloscopio y generador de señales utilizando los módulos ADC y DAC del microcontrolador ESP32. Se analizaron sus principios teóricos de funcionamiento, limitaciones prácticas y desempeño experimental en comparación con instrumentación profesional.
+\end{abstract}
+
+\section{Desarrollo Teórico}
+
+\subsection{Conversión Analógico-Digital (ADC)}
+
+Un Convertidor Analógico-Digital (ADC) transforma una señal analógica continua en una representación digital discreta. Este proceso involucra tres etapas fundamentales: muestreo, cuantización y codificación.
+
+El muestreo consiste en tomar valores de la señal en instantes discretos de tiempo. De acuerdo con el Teorema de Nyquist-Shannon, la frecuencia de muestreo debe ser al menos el doble de la frecuencia máxima presente en la señal para evitar aliasing.
+
+La cuantización asigna el valor analógico medido al nivel digital más cercano dentro de un conjunto finito de niveles. Para un ADC de $n$ bits existen $2^n$ niveles posibles. En el ESP32, el ADC puede configurarse hasta 12 bits, lo que corresponde a 4096 niveles discretos.
+
+El error de cuantización es la diferencia entre el valor analógico real y el valor digital representado, y depende directamente de la resolución del convertidor.
+
+\subsection{Conversión Digital-Analógica (DAC)}
+
+Un Convertidor Digital-Analógico (DAC) realiza el proceso inverso al ADC, generando una señal analógica a partir de un valor digital discreto. El ESP32 incorpora un DAC de 8 bits, permitiendo 256 niveles de salida.
+
+El voltaje ideal de salida se modela como:
+
+\begin{equation}
+V_{out} = \frac{D}{2^n - 1} \cdot V_{ref}
+\end{equation}
+
+donde $D$ es el valor digital, $n$ el número de bits y $V_{ref}$ el voltaje de referencia.
+
+Debido a su naturaleza discreta, la señal generada presenta escalonamientos, especialmente visibles en señales senoidales.
+
+\subsection{ADC del ESP32}
+
+El ESP32 dispone de dos módulos ADC (ADC1 y ADC2) con resolución configurable hasta 12 bits. No obstante, su desempeño real presenta limitaciones asociadas a:
+
+\begin{itemize}
+\item No linealidad diferencial e integral.
+\item Ruido interno del sistema.
+\item Variaciones del voltaje de referencia.
+\item Interferencia cuando se utiliza WiFi (en el caso del ADC2).
+\end{itemize}
+
+Aunque el hardware permite altas velocidades de conversión, la velocidad efectiva depende del entorno de programación y de la capacidad de procesamiento del microcontrolador.
+
+\subsection{DAC del ESP32}
+
+El ESP32 cuenta con dos salidas DAC disponibles en los pines GPIO25 y GPIO26. Estas salidas generan señales analógicas mediante un sistema resistivo interno. La resolución de 8 bits limita la precisión y genera efectos de cuantización visibles en formas de onda continuas.
+
+\subsection{Método SAR (Successive Approximation Register)}
+
+El ADC del ESP32 utiliza el método de aproximación sucesiva (SAR). Este método realiza comparaciones binarias iterativas entre la señal de entrada y una referencia interna.
+
+El proceso consiste en evaluar primero el bit más significativo (MSB), ajustando progresivamente los bits menos significativos hasta aproximar el valor analógico con alta eficiencia energética y rapidez.
+
+\subsection{Comparación con Instrumentación Profesional}
+
+Al comparar el sistema implementado con un osciloscopio o generador profesional se observan diferencias en:
+
+\begin{itemize}
+\item Resolución y precisión.
+\item Linealidad.
+\item Nivel de ruido.
+\item Estabilidad y calibración.
+\end{itemize}
+
+Estas diferencias se deben a las limitaciones inherentes del microcontrolador frente a instrumentación diseñada específicamente para medición de alta precisión.
+
+\section{Introducción}
+
+El desarrollo de sistemas de adquisición y generación de señales mediante microcontroladores permite comprender los principios fundamentales de la instrumentación electrónica. En este laboratorio se exploraron los módulos ADC y DAC del ESP32, evaluando su comportamiento teórico y experimental.
+
+
+
+\section{Pruebas Requeridas}
+
+\subsubsection*{Prueba 1: ADC conectado a potenciómetro}
+
+En esta prueba se conectó un potenciómetro de 10k$\Omega$ al pin GPIO34 del ESP32, configurado como entrada ADC con resolución de 12 bits y atenuación de 11dB para un rango de 0 a 3.3V. Se varió manualmente la posición del potenciómetro desde el mínimo hasta el máximo mientras se observaban los valores en el Serial Monitor y Serial Plotter.
+
+\textbf{Resultados obtenidos:}
+\begin{itemize}
+    \item \textbf{Rango de valores:} 0 a 4095 (correspondiente a 0V - 3.3V)
+    \item \textbf{Linealidad:} Se observó una relación aproximadamente lineal entre la posición angular del potenciómetro y el valor digital leído
+    \item \textbf{Estabilidad:} Se presentaron fluctuaciones de $\pm$5 a $\pm$10 LSB debido al ruido inherente del ADC
+    \item \textbf{Resolución:} La resolución efectiva se aproximó a 0.8 mV por LSB. Lo cual se acerca a la teoría propuesta:
+    \begin{equation}
+    Voltaje = \frac{Max~Vol}{(2^n) - 1} = \frac{3.3~V}{4095} \approx 0.000805V \approx 0.805mV
+    \end{equation}
+\end{itemize}
+
+\textbf{Análisis:} La respuesta del ADC fue consistente con lo esperado teóricamente. Las pequeñas fluctuaciones observadas pueden atribuirse al ruido térmico y a las limitaciones propias del convertidor SAR. Para aplicaciones que requieran mayor estabilidad, se recomienda implementar filtrado por promedio móvil en software.
+
+\subsubsection*{Prueba 2: ADC conectado a generador de señales real}
+
+Se conectó un generador de señales profesional al pin GPIO34 del ESP32, configurando una onda senoidal de 1kHz, 2Vpp con offset de 1.65V para centrar la señal dentro del rango del ADC (0-3.3V). Se visualizó la señal capturada mediante el Serial Plotter de Arduino.
+
+\textbf{Resultados obtenidos:}
+\begin{itemize}
+    \item \textbf{Forma de onda:} Se logró visualizar correctamente la onda senoidal en el Serial Plotter
+    \item \textbf{Frecuencia máxima detectable:} Hasta aproximadamente 3-5 kHz se mantuvo una forma reconocible; por encima de 10 kHz la señal comenzó a distorsionarse notablemente
+    \item \textbf{Precisión de amplitud:} La amplitud medida por el ADC presentó un error promedio del 2-3\% respecto al valor configurado en el generador
+    \item \textbf{Aliasing:} A frecuencias superiores a 15 kHz se observaron efectos de aliasing debido al muestreo insuficiente
+\end{itemize}
+
+\textbf{Análisis:} La frecuencia máxima de muestreo efectiva del ADC con el código utilizado está muy por debajo de la capacidad teórica del hardware. Esto se debe a la sobrecarga introducida por las funciones de Arduino y el envío de datos por puerto serial. Para mejorar la respuesta en frecuencia sería necesario implementar técnicas más eficientes como DMA o I2S.
+
+\subsection{Prueba 3: Verificación del DAC mediante Multímetro}
+
+Con el fin de evaluar experimentalmente la precisión del módulo DAC del ESP32, se realizó una medición directa del voltaje de salida utilizando un multímetro digital en modo DC. La salida analógica fue tomada del pin GPIO25 (DAC1), mientras que la referencia se conectó a tierra (GND) del mismo sistema.
+
+\subsubsection{Conexión realizada}
+
+\begin{itemize}
+\item GPIO25 (DAC1) $\rightarrow$ Punta positiva del multímetro
+\item GND del ESP32 $\rightarrow$ Punta negativa del multímetro
+\end{itemize}
+
+El programa permitió enviar valores digitales específicos al DAC mediante comunicación serial. Para caracterizar el comportamiento del convertidor, se aplicó una rampa discreta en incrementos de 16 unidades (0--192), registrando el voltaje medido en cada punto.
+
+\subsubsection{Resultados experimentales}
+
+La Tabla~\ref{tab:dac_multimetro} presenta los valores digitales aplicados y los voltajes medidos experimentalmente.
+
+\begin{table}[!t]
+\centering
+\caption{Medición experimental del DAC con multímetro}
+\label{tab:dac_multimetro}
+\begin{tabular}{c c}
+\hline
+Valor DAC & Voltaje medido (V) \\
+\hline
+0   & 0.000 \\
+16  & 0.207 \\
+32  & 0.414 \\
+48  & 0.621 \\
+64  & 0.828 \\
+80  & 1.035 \\
+96  & 1.242 \\
+112 & 1.449 \\
+128 & 1.656 \\
+144 & 1.864 \\
+160 & 2.071 \\
+176 & 2.278 \\
+192 & 2.485 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Análisis}
+
+Se observa una relación aproximadamente lineal entre el valor digital aplicado y el voltaje medido, con incrementos cercanos a 0.207~V cada 16 unidades digitales. Esto es consistente con la resolución del DAC de 8 bits.
+
+El paso mínimo teórico (LSB) del DAC puede estimarse como:
+
+\begin{equation}
+LSB = \frac{3.3V}{255} \approx 0.01294V
+\end{equation}
+
+Por lo tanto, un incremento de 16 unidades debería producir un cambio aproximado de:
+
+\begin{equation}
+16 \times 0.01294V \approx 0.207V
+\end{equation}
+
+El valor experimental observado (0.207~V) coincide notablemente con el valor teórico esperado, lo cual confirma el comportamiento lineal del convertidor dentro del rango evaluado.
+
+Las pequeñas diferencias pueden atribuirse a:
+
+\begin{itemize}
+\item Tolerancia y precisión del multímetro.
+\item Variaciones en el voltaje real de alimentación (no exactamente 3.3~V).
+\item No linealidad interna del DAC.
+\end{itemize}
+
+En general, los resultados demuestran que el DAC del ESP32 presenta un comportamiento coherente con el modelo teórico de conversión digital-analógica, aunque limitado por su resolución de 8 bits y por la estabilidad del sistema de referencia.
+
+\subsubsection*{Prueba 4: DAC conectado a osciloscopio}
+
+Se conectó la salida DAC del GPIO25 a un osciloscopio profesional para visualizar las formas de onda generadas por el ESP32: senoidal, triangular y cuadrada, a diferentes frecuencias.
+
+\textbf{Resultados obtenidos:}
+
+\paragraph{Onda senoidal:}
+\begin{itemize}
+    \item \textbf{Baja frecuencia (10-100 Hz):} Forma suave y bien definida, con mínima distorsión
+    \item \textbf{Frecuencia media (500 Hz - 1 kHz):} Se comenzaron a apreciar ligeros escalones debido a la discretización de 8 bits
+    \item \textbf{Alta frecuencia (> 2 kHz):} La forma se deterioró progresivamente, perdiendo la suavidad característica
+\end{itemize}
+
+\paragraph{Onda triangular:}
+\begin{itemize}
+    \item Presentó buena linealidad en las rampas ascendentes y descendentes
+    \item Se observaron pequeñas no linealidades en los vértices (puntas redondeadas) debido al tiempo de establecimiento del DAC
+\end{itemize}
+
+\paragraph{Onda cuadrada:}
+\begin{itemize}
+    \item \textbf{Tiempo de subida (rise time):} Aproximadamente 1-2 $\mu$s, limitado por el slew rate del DAC
+    \item \textbf{Overshoot:} Se observó un ligero sobreimpulso en los flancos de subida
+    \item \textbf{Ruido:} Presencia de pequeñas oscilaciones en los niveles alto y bajo
+\end{itemize}
+
+\textbf{Análisis general:}
+
+Las pruebas realizadas demuestran que el ESP32 es capaz de generar y adquirir señales analógicas con una calidad aceptable para aplicaciones educativas y de prototipado. Sin embargo, se identificaron las siguientes limitaciones:
+
+\subsection{Prueba 5: cruzada entre grupos: Generador de señales y Osciloscopio}
+
+Con el objetivo de validar el funcionamiento del sistema en un escenario real de intercambio entre equipos, se realizó una prueba cruzada entre grupos, donde un grupo actuó como generador de señales y el otro como osciloscopio. La prueba consistió en conectar físicamente la salida analógica generada por el DAC de un ESP32 a la entrada ADC del ESP32 del otro grupo, compartiendo referencia de tierra (GND) para garantizar una medición consistente.
+
+\subsubsection{Nuestro grupo como generador de señales}
+
+En este escenario, nuestro sistema operó como generador de señal utilizando el pin DAC1 (GPIO25). Se generó una señal senoidal de frecuencia nominal de 200~Hz, discretizada en 100 muestras por periodo. La generación se implementó mediante el cálculo incremental del seno y su escalamiento a 8 bits (0--255) para ser aplicado a la función \texttt{dacWrite()}.
+
+La señal producida fue suministrada al grupo receptor (osciloscopio) a través de una conexión directa:
+\begin{itemize}
+\item GPIO25 (DAC) $\rightarrow$ Pin ADC del ESP32 del grupo receptor
+\item GND (nuestro ESP32) $\rightarrow$ GND (ESP32 del grupo receptor)
+\end{itemize}
+
+La forma de onda generada puede observarse en la Fig.~\ref{fig:img1}. Se evidencia un comportamiento \textit{escalonado}, lo cual es esperado debido a dos factores principales:
+
+\begin{enumerate}
+\item \textbf{Resolución limitada del DAC (8 bits):} el DAC del ESP32 sólo puede generar 256 niveles discretos. Por lo tanto, una señal senoidal no se genera como una curva continua, sino como una sucesión de niveles de voltaje. Este efecto se percibe como escalones, especialmente cuando la visualización se realiza sobre valores discretos o cuando la frecuencia de actualización del gráfico es comparable con el periodo de la señal.
+\item \textbf{Muestreo y refresco del sistema de visualización:} el osciloscopio implementado por software no siempre grafica cada muestra generada, sino que depende de la velocidad de muestreo efectiva, el tiempo de ejecución del lazo principal y, en algunos casos, del cuello de botella de la comunicación serial. Esto puede reducir la cantidad de puntos visibles por ciclo y hacer que la señal luzca con segmentos lineales o escalonados.
+\end{enumerate}
+
+Adicionalmente, la presencia de máximos y mínimos \textit{aparentemente planos} en la gráfica puede explicarse por la cuantización en los extremos de la senoide: cerca del pico, el cambio entre muestras consecutivas puede ser menor que el tamaño del paso del DAC (LSB), lo cual hace que varias muestras terminen representándose con el mismo nivel digital, generando un \textit{tope} visual.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{generador_señales.jpeg}
+\caption{Señal generada por el DAC durante la prueba cruzada.}
+\label{fig:img1}
+\end{figure}
+
+\subsubsection{Nuestro grupo como Osciloscopio}
+
+En el escenario inverso, nuestro grupo actuó como sistema de adquisición de señal (osciloscopio digital) mediante la lectura del módulo ADC1 del ESP32 en el pin GPIO34. Se configuró una resolución de 12 bits y una atenuación de 11~dB, lo cual permite ampliar el rango efectivo de medición hasta aproximadamente 3.3~V.
+
+La conexión realizada fue:
+
+\begin{itemize}
+\item Salida analógica del generador del grupo emisor $\rightarrow$ GPIO34 (ADC1) del ESP32
+\item GND del grupo emisor $\rightarrow$ GND de nuestro ESP32
+\end{itemize}
+
+La señal recibida fue muestreada de manera periódica y visualizada en tiempo real mediante una interfaz gráfica basada en comunicación serial. La forma observada (Fig.~\ref{fig:img2}) presentó un comportamiento escalonado con tramos aparentemente constantes y otros de variación más pronunciada.
+
+Este comportamiento puede explicarse a partir de los siguientes factores técnicos:
+
+\textbf{1) Cuantización del ADC (12 bits).}  
+El ADC convierte el voltaje analógico en uno de 4096 niveles discretos. Cuando la variación instantánea de la señal es menor que el tamaño del paso mínimo de cuantización (LSB), varias muestras consecutivas pueden mapearse al mismo valor digital. Esto genera segmentos horizontales o ``planos'' en la gráfica.
+
+\textbf{2) Resolución limitada del DAC del generador (8 bits).}  
+El grupo emisor generaba la señal mediante un DAC de 8 bits (256 niveles). Por lo tanto, la señal original ya estaba discretizada antes de ser medida. Nuestro ADC detecta esos niveles discretos, reforzando el efecto escalonado.
+
+\textbf{3) Relación entre frecuencia de la señal y frecuencia de muestreo.}  
+El muestreo se realizó dentro del ciclo principal del programa, lo que introduce variaciones en el intervalo de muestreo (\textit{jitter}). En regiones donde la pendiente de la señal es baja (cercanas a máximos y mínimos), pequeñas variaciones temporales producen cambios mínimos en el valor digital; en regiones de mayor pendiente, el mismo error temporal produce variaciones más visibles.
+
+\textbf{4) Ausencia de filtrado analógico (anti-aliasing).}  
+El sistema no incorporó filtros pasivos antes del ADC. En instrumentación profesional, filtros pasa-bajos reducen componentes de alta frecuencia antes del muestreo. En este caso, cualquier ruido o fluctuación se refleja directamente en la lectura.
+
+\textbf{5) Dependencia del voltaje de referencia y ruido interno.}  
+El ADC del ESP32 depende del sistema de alimentación interno. Pequeñas variaciones en la fuente de 3.3~V afectan proporcionalmente el resultado de conversión.
+
+Los tramos constantes se observaron especialmente cerca de los máximos y mínimos de la señal: en una senoide, la pendiente es cercana a cero en dichos puntos, por lo que múltiples muestras consecutivas pueden resultar muy similares y, tras la cuantización, coincidir en el mismo nivel digital. En contraste, en regiones cercanas a los cruces por cero, la variación entre muestras consecutivas es mayor, generando segmentos inclinados más evidentes.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{Osiloscopio.png}
+\caption{Visualización del sistema actuando como osciloscopio.}
+\label{fig:img2}
+\end{figure}
+
+\subsubsection{Montaje experimental}
+
+Finalmente, la Fig.~\ref{fig:img3} muestra el montaje empleado para la prueba cruzada entre grupos, donde se conectó la salida del DAC del emisor a la entrada ADC del receptor, manteniendo una referencia común de tierra.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{montaje_grupos.jpeg}
+\caption{Montaje experimental realizado para la prueba cruzada.}
+\label{fig:img3}
+\end{figure}
+
+\section*{Preguntas del Informe}
+
+\subsection*{1. ¿Cuáles son las características y el funcionamiento general de los módulos ADC y DAC, y específicamente los del ESP32?}
+
+\subsubsection*{Módulo ADC (Convertidor Analógico-Digital)}
+
+El ADC convierte una señal analógica (voltaje continuo) en un valor digital (número binario) que el microcontrolador puede procesar. El proceso consiste en muestrear la señal analógica a intervalos regulares y cuantificarla en niveles discretos.
+
+\textbf{Características del ADC en ESP32:}
+\begin{itemize}
+    \item \textbf{Resolución:} 12 bits (valores de 0 a 4095)
+    \item \textbf{Canales:} 18 canales disponibles (ADC1 y ADC2)
+    \item \textbf{Rango de entrada:} 0 a 3.3V (configurable con atenuación)
+    \item \textbf{Frecuencia de muestreo:} Hasta 200 kHz en condiciones óptimas
+    \item \textbf{Atenuación configurable:} Permite medir señales de hasta ~3.6V usando ADC\_11db
+\end{itemize}
+
+\subsubsection*{Módulo DAC (Convertidor Digital-Analógico)}
+
+El DAC realiza la función inversa al ADC: convierte un valor digital en una señal analógica continua.
+
+\textbf{Características del DAC en ESP32:}
+\begin{itemize}
+    \item \textbf{Canales:} 2 salidas (GPIO25 = DAC1, GPIO26 = DAC2)
+    \item \textbf{Resolución:} 8 bits (valores de 0 a 255)
+    \item \textbf{Rango de salida:} 0 a 3.3V
+    \item \textbf{Velocidad:} Limitada por el tiempo de establecimiento
+\end{itemize}
+
+\subsection*{2. ¿Es posible alcanzar la máxima velocidad de muestreo del ADC desde su código? Justifique.}
+
+\textbf{No es posible alcanzar la máxima velocidad de muestreo del ADC usando código estándar de Arduino} por las siguientes razones:
+
+\begin{enumerate}
+    \item \textbf{Sobrecarga de software:} La función \texttt{analogRead()} introduce retardos significativos entre lecturas.
+    
+    \item \textbf{Tiempo de procesamiento:} El microcontrolador debe leer, procesar y almacenar cada muestra, lo que consume ciclos de reloj.
+    
+    \item \textbf{Limitaciones del bucle:} Las operaciones adicionales (envío serial, cálculos) impiden mantener la velocidad máxima.
+\end{enumerate}
+
+\textbf{Alternativas para mayor velocidad:}
+\begin{itemize}
+    \item Uso del periférico \textbf{I2S} para lectura en modo paralelo
+    \item Configuración del ADC en \textbf{modo continuo con DMA}
+    \item Programación directa con \textbf{ESP-IDF}
+\end{itemize}
+
+\subsection*{3. ¿Cómo funciona el método SAR (Successive Approximation Register)?}
+
+El método SAR utiliza un \textbf{algoritmo de búsqueda binaria} para determinar el valor digital equivalente a una tensión de entrada.
+
+\textbf{Funcionamiento paso a paso:}
+\begin{enumerate}
+    \item \textbf{Muestreo:} Un capacitor captura y mantiene el voltaje de entrada.
+    
+    \item \textbf{Búsqueda binaria:} El registro SAR realiza una búsqueda comenzando por el bit más significativo (MSB):
+    \begin{itemize}
+        \item Se setea el MSB a "1" y los demás bits a "0"
+        \item Un DAC interno genera el voltaje equivalente
+        \item Un comparador evalúa si la entrada es mayor o menor
+    \end{itemize}
+    
+    \item \textbf{Decisión por bit:}
+    \begin{itemize}
+        \item Si la entrada es \textbf{mayor}, el bit permanece en "1"
+        \item Si es \textbf{menor}, el bit se resetea a "0"
+    \end{itemize}
+    
+    \item \textbf{Finalización:} El proceso se repite para cada bit hasta obtener el valor completo.
+\end{enumerate}
+
+\textbf{Analogía:} Funciona como una balanza donde se prueban pesas de diferente tamaño (de mayor a menor) hasta igualar el peso desconocido.
+
+\subsection*{4. ¿Cómo podría implementarse un DAC utilizando resistencias y salidas digitales? ¿Qué requisitos deben cumplir los valores de las resistencias?}
+
+\subsubsection*{Implementación: Red R-2R}
+
+Un DAC puede implementarse usando una \textbf{red de resistencias R-2R} conectada a múltiples salidas digitales. Esta red convierte un valor binario en un voltaje analógico proporcional.
+
+\textbf{Estructura:}
+\begin{itemize}
+    \item Escalera de resistencias con solo dos valores: \textbf{R} y \textbf{2R}
+    \item Cada bit controla un interruptor que conecta a VREF (1) o GND (0)
+    \item La salida analógica es proporcional al valor binario de entrada
+\end{itemize}
+
+\subsubsection*{Requisitos de las resistencias}
+
+\begin{enumerate}
+    \item \textbf{Precisión:} Tolerancia idealmente \textbf{1\% o mejor} para buena linealidad.
+    
+    \item \textbf{Coincidencia de valores:} La relación exacta 2:1 entre resistencias debe mantenerse con alta fidelidad.
+    
+    \item \textbf{Rango recomendado:} 
+    \begin{itemize}
+        \item \textbf{R:} 1k$\Omega$ a 10k$\Omega$
+        \item \textbf{2R:} 2k$\Omega$ a 20k$\Omega$
+    \end{itemize}
+    
+    \item \textbf{Estabilidad térmica:} Bajo coeficiente de temperatura para mantener precisión.
+\end{enumerate}
+
+\subsection*{5. Al comparar las señales medidas y generadas por su sistema con las de un osciloscopio o generador profesional}
+
+\subsubsection*{a) Diferencias observadas:}
+En la Tabla II se presentan las principales diferencias encontradas.
+
+\begin{table}[h]
+\centering
+\caption{COMPARACIÓN ENTRE SISTEMA ESP32 Y EQUIPOS PROFESIONALES}
+\label{tab:comparacion}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Aspecto} & \textbf{Sistema ESP32} & \textbf{Equipo Profesional} \\
+\hline
+Resolución & Escalones visibles & Señal suave y continua \\
+\hline
+Amplitud & 0-3.3V fijo & Rango configurable \\
+\hline
+Frecuencia & Limitada (Hz-kHz) & Amplia (DC-GHz) \\
+\hline
+Ruido & Presente & Mínimo, blindado \\
+\hline
+Precisión & Errores de offset/ganancia & Alta precisión calibrada \\
+\hline
+Estabilidad & Fluctuaciones & Estable compensado \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection*{b) ¿A qué se deben estas diferencias?}
+
+\begin{enumerate}
+    \item \textbf{Limitaciones de hardware:}
+    \begin{itemize}
+        \item \textbf{Resolución:} DAC de 8 bits vs 12-16 bits en equipos profesionales
+        \item \textbf{Muestreo:} ADC limitado a 200 kHz vs MHz/GHz
+        \item \textbf{Componentes:} Propósito general vs alta precisión
+    \end{itemize}
+    
+    \item \textbf{Errores de conversión:}
+    \begin{itemize}
+        \item \textbf{Offset:} Desviación en el punto cero
+        \item \textbf{Ganancia:} Pendiente no ideal
+        \item \textbf{No linealidad:} Escalones no uniformes
+    \end{itemize}
+    
+    \item \textbf{Factores externos:}
+    \begin{itemize}
+        \item \textbf{Ruido electromagnético:} Cables como antenas
+        \item \textbf{Alimentación:} USB introduce ruido
+        \item \textbf{Temperatura:} Afecta componentes
+    \end{itemize}
+    
+    \item \textbf{Limitaciones de software:}
+    \begin{itemize}
+        \item \textbf{Sobrecarga:} Retardos en el bucle principal
+        \item \textbf{Sincronización:} Delays no precisos
+    \end{itemize}
+\end{enumerate}
+
+
+\section{Simulaciones Virtuales}
+
+\subsection{Simulación de control de LED mediante relé (Wokwi)}
+
+Con el fin de validar el control de cargas a través de un elemento de conmutación electromecánico, se simuló en Wokwi un circuito en el que un pulsador controla la activación de un LED mediante un relé. La simulación permite representar el principio de aislamiento entre el circuito de control (baja potencia) y el circuito de carga (potencia), característica principal del uso de relés en aplicaciones industriales y de automatización.
+
+\subsubsection{Montaje y conexiones}
+
+El montaje se realizó utilizando un ESP32, un módulo de relé, un pulsador y un LED con resistencia limitadora de corriente. La lógica de control se implementó con una entrada digital configurada con resistencia interna \texttt{pull-up} y una salida digital conectada a la entrada del módulo relé.
+
+Las conexiones empleadas fueron:
+
+\begin{itemize}
+\item Pulsador:
+\begin{itemize}
+\item Un terminal del pulsador $\rightarrow$ GND
+\item Terminal opuesto $\rightarrow$ GPIO17 (entrada digital con \texttt{INPUT\_PULLUP})
+\end{itemize}
+
+\item Módulo relé (control):
+\begin{itemize}
+\item IN $\rightarrow$ GPIO16 (salida digital)
+\item VCC $\rightarrow$ 5V (según el módulo)
+\item GND $\rightarrow$ GND del ESP32
+\end{itemize}
+
+\item Circuito de carga (LED con contactos del relé):
+\begin{itemize}
+\item 5V $\rightarrow$ COM del relé
+\item NO del relé $\rightarrow$ Resistencia (220$\Omega$) $\rightarrow$ Ánodo del LED
+\item Cátodo del LED $\rightarrow$ GND
+\end{itemize}
+\end{itemize}
+
+En esta configuración se empleó el contacto \textbf{NO} (Normally Open), por lo cual el LED permanece apagado mientras el relé está desenergizado y se enciende únicamente cuando el relé conmuta.
+
+\subsubsection{Funcionamiento y resultados}
+
+El programa configura el pin del pulsador como entrada con \texttt{pull-up}, de manera que el estado lógico es \texttt{HIGH} en reposo y cambia a \texttt{LOW} cuando se oprime el botón (conexión a tierra). Cuando el botón es presionado, el ESP32 activa la salida de control del relé, energizando la bobina del módulo y cerrando el contacto COM--NO. Como consecuencia, el circuito de carga se completa y el LED enciende. Al soltar el botón, la bobina se desenergiza, el contacto retorna a su estado abierto y el LED se apaga.
+
+Este comportamiento se observó de forma consistente durante la simulación, verificando que el relé puede ser controlado mediante una salida digital del microcontrolador y que permite conmutar una carga de manera aislada del circuito de control.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{rele_wokwi.jpeg}
+\caption{Simulación en Wokwi del control de un LED mediante relé accionado por pulsador.}
+\label{fig:wokwi_rele}
+\end{figure}
+
+
+\subsubsection{Limitaciones del relé}
+
+Aunque los relés ofrecen aislamiento galvánico y capacidad de conmutar cargas relativamente altas, presentan limitaciones relevantes:
+
+\begin{itemize}
+\item \textbf{Corriente y voltaje máximos:} los contactos tienen una capacidad nominal (por ejemplo, 10A a 250VAC o 10A a 30VDC en relés comunes). Superar estos límites puede causar calentamiento, arco eléctrico y desgaste acelerado.
+\item \textbf{Tiempo de conmutación:} típicamente del orden de milisegundos (aprox. 5--20 ms), lo cual los hace inadecuados para señales rápidas.
+\item \textbf{Rebote de contactos:} al conmutar, el contacto puede ``rebotar'' generando transiciones rápidas no deseadas, especialmente relevante en lógica digital si el relé se usa como entrada.
+\item \textbf{Vida útil mecánica:} al tener partes móviles, la cantidad de ciclos está limitada; el desgaste aumenta con cargas inductivas o conmutación frecuente.
+\item \textbf{Ruido electromagnético:} el accionamiento de la bobina y el arco en contactos (en cargas reales) puede introducir interferencia si no se acondiciona el sistema.
+\end{itemize}
+
+En conjunto, la simulación confirmó el funcionamiento básico del relé como elemento de conmutación y permitió identificar características y limitaciones que deben considerarse en una implementación física.
+
+\section*{Manejo de Archivos y Almacenamiento en ESP32 con microSD}
+
+\subsection*{Introducción}
+El ESP32 puede interactuar con tarjetas microSD para almacenar y recuperar datos de forma no volátil. Esta capacidad es fundamental en aplicaciones de IoT donde se requiere registrar datos de sensores, almacenar archivos de configuración o guardar información sin depender de la memoria flash interna del microcontrolador.
+
+\subsection*{Interfaz de Comunicación: SPI}
+La comunicación entre el ESP32 y el módulo microSD se realiza mediante el protocolo \textbf{SPI} (Serial Peripheral Interface), que utiliza cuatro pines principales:
+
+\begin{table}[h]
+\centering
+\caption{Pines de comunicación SPI}
+\label{tab:spi_pines}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Señal} & \textbf{Descripción} \\
+\hline
+MOSI & Master Out Slave In (datos del ESP32 a la tarjeta) \\
+\hline
+MISO & Master In Slave Out (datos de la tarjeta al ESP32) \\
+\hline
+SCK & Serial Clock (señal de reloj) \\
+\hline
+CS & Chip Select (selecciona la tarjeta) \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection*{Sistema de Archivos}
+Las tarjetas microSD utilizan sistemas de archivos \textbf{FAT16} o \textbf{FAT32}, que son compatibles con las librerías de Arduino/ESP32. Esto permite:
+\begin{itemize}
+    \item Crear, leer, escribir y eliminar archivos
+    \item Navegar por directorios
+    \item Obtener información como tamaño de archivos y espacio disponible
+\end{itemize}
+
+\subsection*{Pines del Módulo microSD}
+En la Tabla \ref{tab:pines_sd} se describen los pines típicos de un módulo microSD.
+
+\begin{table}[h]
+\centering
+\caption{Pines del módulo microSD}
+\label{tab:pines_sd}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Pin} & \textbf{Descripción} \\
+\hline
+CS & Chip Select (selección de tarjeta) \\
+\hline
+DI & Data Input (equivalente a MOSI) \\
+\hline
+DO & Data Output (equivalente a MISO) \\
+\hline
+SCK & Serial Clock \\
+\hline
+VCC & Alimentación (generalmente 3.3V) \\
+\hline
+GND & Tierra \\
+\hline
+CD & Card Detect (detecta si hay tarjeta insertada) \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection*{Conexiones Recomendadas ESP32 - Módulo microSD}
+La Tabla \ref{tab:conexiones} muestra las conexiones sugeridas entre el ESP32 y el módulo microSD.
+
+\begin{table}[h]
+\centering
+\caption{Conexiones ESP32 - Módulo microSD}
+\label{tab:conexiones}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Módulo microSD} & \textbf{ESP32} \\
+\hline
+CS & GPIO5 \\
+\hline
+DI (MOSI) & GPIO23 \\
+\hline
+DO (MISO) & GPIO19 \\
+\hline
+SCK & GPIO18 \\
+\hline
+VCC & 3.3V \\
+\hline
+GND & GND \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection*{Funcionamiento Básico}
+El proceso para utilizar la tarjeta microSD con el ESP32 sigue los siguientes pasos:
+
+\begin{enumerate}
+    \item \textbf{Conexión física:} Se conectan los pines SPI del ESP32 a los del módulo microSD según la Tabla \ref{tab:conexiones}.
+    
+    \item \textbf{Inicialización:} En el código, se incluye la librería \texttt{SD.h} y se inicializa la comunicación con la tarjeta usando el pin CS.
+    
+    \item \textbf{Operaciones de archivo:} Una vez inicializada, se pueden realizar operaciones estándar:
+    \begin{itemize}
+        \item Abrir archivos en modo lectura o escritura
+        \item Leer y escribir datos
+        \item Cerrar archivos para garantizar la integridad de los datos
+        \item Crear y eliminar directorios
+    \end{itemize}
+\end{enumerate}
+
+\subsection*{Ejemplo de Aplicación: Data Logger de Temperatura}
+Un caso de uso típico es el registro de datos de sensores (data logging). A continuación se describe un ejemplo práctico:
+
+\textbf{Contexto:} Un sistema de monitoreo ambiental que registra lecturas de temperatura en un archivo de texto cada cierto intervalo de tiempo.
+
+\textbf{Proceso:}
+\begin{enumerate}
+    \item El ESP32 lee un sensor de temperatura (por ejemplo, el MPU6050 o un sensor DS18B20)
+    \item Abre (o crea si no existe) un archivo llamado \texttt{datos.txt} en la tarjeta microSD
+    \item Escribe una línea con la fecha, hora y valor de temperatura leído
+    \item Cierra el archivo para asegurar que los datos se guarden correctamente
+\end{enumerate}
+
+\textbf{Resultado:} Se genera un archivo de texto en la tarjeta microSD con un historial de mediciones que puede ser abierto y analizado en una computadora utilizando herramientas como Excel, bloc de notas o software de análisis de datos.
+
+\textbf{Ejemplo de líneas escritas en el archivo:}
+\begin{verbatim}
+2026-03-01 10:30:15, Temperatura: 25.3°C
+2026-03-01 10:31:15, Temperatura: 25.4°C
+2026-03-01 10:32:15, Temperatura: 25.2°C
+\end{verbatim}
+
+\section{Análisis de Resultados}
+
+En este laboratorio pudimos comprobar en la práctica cómo se comportan el ADC y el DAC del ESP32, y qué tan lejos (o cerca) están de lo que uno espera en teoría.
+
+En la \textbf{Prueba 1 (ADC con potenciómetro)}, el hecho de que el valor cambiara entre 0 y 4095 confirmó que sí estábamos leyendo a 12 bits como se configuró. También se vio que el cambio fue casi lineal: a medida que girábamos el potenciómetro, el número subía o bajaba de forma proporcional. Lo que sí llamó la atención fueron las pequeñas variaciones de $\pm$5 a $\pm$10 LSB incluso cuando el potenciómetro se quedaba quieto. Eso tiene sentido porque el ADC del ESP32 mete ruido interno y además la referencia de 3.3V no es perfecta. En resumen: funciona bien, pero no es “de laboratorio” en precisión.
+
+En la \textbf{Prueba 2 (ADC con generador profesional)}, logramos ver bien la senoide en el Serial Plotter a 1 kHz, pero al ir subiendo frecuencia se empezó a notar que el sistema no alcanzaba a muestrear lo suficientemente rápido. Entre 3 y 5 kHz todavía se reconocía la forma, pero después de 10 kHz ya se veía deformada, y a más de 15 kHz aparecieron efectos claros de aliasing. Esto nos mostró algo importante: aunque el ESP32 en teoría puede muestrear bastante rápido, con \texttt{analogRead()} + envío por serial, la velocidad real baja mucho. Además, el error del 2--3\% en amplitud se puede explicar por la no linealidad típica del ADC del ESP32 y por pequeñas diferencias en el voltaje de referencia.
+
+En la \textbf{Prueba 3 (DAC con multímetro)}, los resultados fueron bastante coherentes. Al aumentar el valor digital en pasos de 16, el voltaje subía casi siempre alrededor de 0.207 V, que es justo lo que se espera si el DAC es de 8 bits (256 niveles) y trabaja con 3.3 V. O sea, la relación “valor DAC vs voltaje” salió casi lineal, lo cual confirma que el DAC se comporta como dice el modelo teórico. Las pequeñas diferencias se entienden por la precisión del multímetro y porque el 3.3 V real no siempre es exactamente 3.3 V.
+
+En la \textbf{Prueba 4 (DAC con osciloscopio)}, se notó lo que más limita al DAC del ESP32: su resolución. En señales como la senoide, a frecuencias bajas se veía bastante bien, pero al subir a 500 Hz -- 1 kHz empezaron a aparecer escalones, y por encima de 2 kHz la señal se fue dañando más. Esto pasa porque el DAC solo tiene 256 niveles y porque, además, el sistema tiene un tiempo de respuesta limitado (no puede cambiar de nivel infinitamente rápido).
+
+Finalmente, en la \textbf{Prueba 5 (cruzada entre grupos)}, fue muy evidente que la señal se “escalonaba” todavía más. Esto tiene explicación lógica: primero el DAC del emisor ya genera la senoide por niveles (8 bits), y luego el ADC del receptor vuelve a convertirla en niveles (12 bits). Entonces, terminamos viendo una señal doblemente cuantizada. Además, como el muestreo depende del ciclo del programa y de la comunicación serial, hay variaciones en el tiempo entre muestras, y como no usamos filtro anti-aliasing, cualquier ruido o componente rápida también aparece en la medición.
+
+En conclusión, el ESP32 sí sirve como un osciloscopio/generador básico para entender conceptos (cuantización, aliasing, ruido, límites de muestreo), pero se nota que no está diseñado para competir con instrumentos profesionales. Aun así, justo por esas limitaciones es que el laboratorio fue útil: porque facilitó a entender qué cosas vienen del hardware y qué cosas vienen de cómo programamos y medimos.
+
+\end{document}
